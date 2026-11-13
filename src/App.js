@@ -1,24 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import theme from './theme';
+import { AuthProvider } from './context/AuthContext';
+import TodoListPage from './pages/TodoListPage';
+import LoginPage from './pages/LoginPage';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Dedicated route /to-do as requested */}
+            <Route path="/to-do" element={<TodoListPage />} />
+            <Route path="/to-do/login" element={<LoginPage />} />
+            
+            {/* Redirect / to /to-do */}
+            <Route path="/" element={<Navigate to="/to-do" replace />} />
+            
+            {/* Catch-all redirect to /to-do */}
+            <Route path="*" element={<Navigate to="/to-do" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
