@@ -21,8 +21,18 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  // Safe path resolution
-  const safeSuffix = path.normalize(req.url.split('?')[0]);
+  // Strip query string and normalize
+  let cleanUrl = req.url.split('?')[0];
+
+  // Strip /to-do prefix if present (since build folder holds files at root)
+  if (cleanUrl.startsWith('/to-do')) {
+    cleanUrl = cleanUrl.slice(6);
+  }
+  if (!cleanUrl || cleanUrl === '/') {
+    cleanUrl = '/index.html';
+  }
+
+  const safeSuffix = path.normalize(cleanUrl);
   let filePath = path.join(BUILD_DIR, safeSuffix);
 
   fs.stat(filePath, (err, stats) => {
