@@ -20,6 +20,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ChecklistIcon from '@mui/icons-material/Checklist';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckIcon from '@mui/icons-material/Check';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import { categoryStyles } from './CategoryChips';
 
@@ -63,6 +64,8 @@ export default function TaskItem({
   // Subtasks state
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [editingSubtaskId, setEditingSubtaskId] = useState(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
 
   const subtasks = task.subtasks || [];
   const completedSubtasks = subtasks.filter((s) => s.completed).length;
@@ -76,6 +79,30 @@ export default function TaskItem({
     if (onUpdateSubtasks) {
       onUpdateSubtasks(task._id, updated);
     }
+  };
+
+  const handleStartEditSubtask = (st) => {
+    setEditingSubtaskId(st.id || st._id);
+    setEditingSubtaskTitle(st.title || '');
+  };
+
+  const handleCancelEditSubtask = () => {
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle('');
+  };
+
+  const handleSaveEditSubtask = (subtaskId) => {
+    if (!editingSubtaskTitle.trim()) return;
+    const updated = subtasks.map((s) =>
+      s.id === subtaskId || s._id === subtaskId
+        ? { ...s, title: editingSubtaskTitle.trim() }
+        : s
+    );
+    if (onUpdateSubtasks) {
+      onUpdateSubtasks(task._id, updated);
+    }
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle('');
   };
 
   const handleAddSubtask = (e) => {
@@ -94,6 +121,9 @@ export default function TaskItem({
   };
 
   const handleDeleteSubtask = (subtaskId) => {
+    if (editingSubtaskId === subtaskId) {
+      handleCancelEditSubtask();
+    }
     const updated = subtasks.filter(
       (s) => s.id !== subtaskId && s._id !== subtaskId
     );
@@ -325,48 +355,148 @@ export default function TaskItem({
 
           {/* Subtasks list */}
           <Stack spacing={0.6} sx={{ mb: 1.5 }}>
-            {subtasks.map((st) => (
-              <Stack
-                key={st.id || st._id}
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{
-                  p: 0.8,
-                  px: 1.2,
-                  borderRadius: '6px',
-                  bgcolor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                }}
-              >
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-                  <Checkbox
-                    size="small"
-                    checked={Boolean(st.completed)}
-                    onChange={() => handleToggleSubtask(st.id || st._id)}
-                    sx={{ p: 0.2 }}
-                  />
-                  <Typography
-                    variant="body2"
+            {subtasks.map((st) => {
+              const subId = st.id || st._id;
+              const isEditing = editingSubtaskId === subId;
+
+              if (isEditing) {
+                return (
+                  <Stack
+                    key={subId}
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
                     sx={{
-                      fontSize: '0.84rem',
-                      fontWeight: 600,
-                      color: st.completed ? 'text.secondary' : '#0F172A',
-                      textDecoration: st.completed ? 'line-through' : 'none',
+                      p: 0.6,
+                      px: 1,
+                      borderRadius: '6px',
+                      bgcolor: '#FFFDF5',
+                      border: '1.5px solid #F59E0B',
                     }}
                   >
-                    {st.title}
-                  </Typography>
-                </Stack>
-                <IconButton
-                  size="small"
-                  onClick={() => handleDeleteSubtask(st.id || st._id)}
-                  sx={{ color: '#94A3B8', '&:hover': { color: '#DC2626' } }}
+                    <TextField
+                      size="small"
+                      fullWidth
+                      autoFocus
+                      value={editingSubtaskTitle}
+                      onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveEditSubtask(subId);
+                        } else if (e.key === 'Escape') {
+                          handleCancelEditSubtask();
+                        }
+                      }}
+                      sx={{
+                        bgcolor: '#FFFFFF',
+                        '& input': { py: 0.5, px: 1, fontSize: '0.84rem' },
+                      }}
+                    />
+                    <Tooltip title="Save (Enter)">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleSaveEditSubtask(subId)}
+                        sx={{ color: '#16A34A', bgcolor: '#F0FDF4', '&:hover': { bgcolor: '#DCFCE7' } }}
+                      >
+                        <CheckIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Cancel (Esc)">
+                      <IconButton
+                        size="small"
+                        onClick={handleCancelEditSubtask}
+                        sx={{ color: '#64748B', '&:hover': { color: '#0F172A' } }}
+                      >
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                );
+              }
+
+              return (
+                <Stack
+                  key={subId}
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{
+                    p: 0.8,
+                    px: 1.2,
+                    borderRadius: '6px',
+                    bgcolor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      borderColor: '#CBD5E1',
+                      bgcolor: '#FAFAFA',
+                      '& .subtask-actions': {
+                        opacity: 1,
+                      },
+                    },
+                  }}
                 >
-                  <CloseIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </Stack>
-            ))}
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                    onDoubleClick={() => handleStartEditSubtask(st)}
+                  >
+                    <Checkbox
+                      size="small"
+                      checked={Boolean(st.completed)}
+                      onChange={() => handleToggleSubtask(subId)}
+                      sx={{ p: 0.2 }}
+                    />
+                    <Tooltip title="Double-click to edit subtask" placement="top-start">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: '0.84rem',
+                          fontWeight: 600,
+                          color: st.completed ? 'text.secondary' : '#0F172A',
+                          textDecoration: st.completed ? 'line-through' : 'none',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {st.title}
+                      </Typography>
+                    </Tooltip>
+                  </Stack>
+
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    className="subtask-actions"
+                    sx={{
+                      opacity: { xs: 1, sm: 0.7 },
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  >
+                    <Tooltip title="Edit subtask">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleStartEditSubtask(st)}
+                        sx={{ color: '#64748B', '&:hover': { color: '#2563EB', bgcolor: '#EFF6FF' } }}
+                      >
+                        <EditOutlinedIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete subtask">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteSubtask(subId)}
+                        sx={{ color: '#94A3B8', '&:hover': { color: '#DC2626', bgcolor: '#FEF2F2' } }}
+                      >
+                        <CloseIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </Stack>
+              );
+            })}
           </Stack>
 
           {/* Add Subtask input */}

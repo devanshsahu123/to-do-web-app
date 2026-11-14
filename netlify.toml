@@ -3,6 +3,12 @@
   command = "npm run build"
 
 [[redirects]]
+  from = "/to-do/api/*"
+  to = "https://sahusaathi.com/to-do/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

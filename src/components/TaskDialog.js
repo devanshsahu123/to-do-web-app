@@ -16,11 +16,17 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Checkbox,
+  Tooltip,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import FlagIcon from '@mui/icons-material/Flag';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import RepeatIcon from '@mui/icons-material/Repeat';
+import ChecklistIcon from '@mui/icons-material/Checklist';
+import AddIcon from '@mui/icons-material/Add';
+import CheckIcon from '@mui/icons-material/Check';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 
 // Format Date object to "YYYY-MM-DDTHH:mm" for datetime-local input
 const toDateTimeLocalString = (date) => {
@@ -84,6 +90,10 @@ export default function TaskDialog({
   const [repeatMode, setRepeatMode] = useState('None'); // 'None' | 'Repeat'
   const [repeatDays, setRepeatDays] = useState([]); // ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const [status, setStatus] = useState('In Progress');
+  const [subtasks, setSubtasks] = useState([]);
+  const [newSubtaskInput, setNewSubtaskInput] = useState('');
+  const [editingSubtaskId, setEditingSubtaskId] = useState(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -98,6 +108,7 @@ export default function TaskDialog({
       setRepeatMode(hasRecurrence ? 'Repeat' : 'None');
       setRepeatDays(task.recurrence?.days || []);
       setStatus(task.status || 'In Progress');
+      setSubtasks(task.subtasks ? JSON.parse(JSON.stringify(task.subtasks)) : []);
     } else {
       setTitle('');
       setDescription('');
@@ -109,7 +120,11 @@ export default function TaskDialog({
       setRepeatMode('None');
       setRepeatDays([]);
       setStatus('In Progress');
+      setSubtasks([]);
     }
+    setNewSubtaskInput('');
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle('');
     setError('');
     setSaving(false);
   }, [task, initialDate, open]);
@@ -120,6 +135,57 @@ export default function TaskDialog({
     } else {
       setRepeatDays([...repeatDays, day]);
     }
+  };
+
+  const handleAddSubtask = (e) => {
+    e?.preventDefault();
+    if (!newSubtaskInput.trim()) return;
+    const newSt = {
+      id: 'sub_' + Math.random().toString(36).substring(2, 9),
+      title: newSubtaskInput.trim(),
+      completed: false,
+    };
+    setSubtasks([...subtasks, newSt]);
+    setNewSubtaskInput('');
+  };
+
+  const handleToggleSubtask = (subId) => {
+    setSubtasks(
+      subtasks.map((s) =>
+        s.id === subId || s._id === subId ? { ...s, completed: !s.completed } : s
+      )
+    );
+  };
+
+  const handleDeleteSubtask = (subId) => {
+    if (editingSubtaskId === subId) {
+      setEditingSubtaskId(null);
+      setEditingSubtaskTitle('');
+    }
+    setSubtasks(subtasks.filter((s) => s.id !== subId && s._id !== subId));
+  };
+
+  const handleStartEditSubtask = (st) => {
+    setEditingSubtaskId(st.id || st._id);
+    setEditingSubtaskTitle(st.title || '');
+  };
+
+  const handleCancelEditSubtask = () => {
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle('');
+  };
+
+  const handleSaveEditSubtask = (subId) => {
+    if (!editingSubtaskTitle.trim()) return;
+    setSubtasks(
+      subtasks.map((s) =>
+        s.id === subId || s._id === subId
+          ? { ...s, title: editingSubtaskTitle.trim() }
+          : s
+      )
+    );
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle('');
   };
 
   const handleSubmit = async (e) => {
@@ -159,6 +225,7 @@ export default function TaskDialog({
           days: repeatMode === 'Repeat' ? repeatDays : [],
           interval: 1,
         },
+        subtasks,
         status,
       });
       onClose();
@@ -436,6 +503,215 @@ export default function TaskDialog({
                 </Select>
               </FormControl>
             )}
+
+            {/* Subtasks / Checklist */}
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: '10px',
+                bgcolor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.2 }}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <ChecklistIcon sx={{ fontSize: 18, color: '#4338CA' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: '#334155', letterSpacing: '0.04em' }}>
+                    SUBTASKS / CHECKLIST
+                  </Typography>
+                </Stack>
+                {subtasks.length > 0 && (
+                  <Chip
+                    label={`${subtasks.filter((s) => s.completed).length}/${subtasks.length} Done`}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      bgcolor: '#EEF2FF',
+                      color: '#4338CA',
+                    }}
+                  />
+                )}
+              </Stack>
+
+              {/* Subtasks items list */}
+              {subtasks.length > 0 && (
+                <Stack spacing={0.8} sx={{ mb: 1.5 }}>
+                  {subtasks.map((st) => {
+                    const subId = st.id || st._id;
+                    const isEditing = editingSubtaskId === subId;
+
+                    if (isEditing) {
+                      return (
+                        <Stack
+                          key={subId}
+                          direction="row"
+                          alignItems="center"
+                          spacing={0.8}
+                          sx={{
+                            p: 0.6,
+                            px: 1,
+                            borderRadius: '6px',
+                            bgcolor: '#FFFDF5',
+                            border: '1.5px solid #F59E0B',
+                          }}
+                        >
+                          <TextField
+                            size="small"
+                            fullWidth
+                            autoFocus
+                            value={editingSubtaskTitle}
+                            onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveEditSubtask(subId);
+                              } else if (e.key === 'Escape') {
+                                handleCancelEditSubtask();
+                              }
+                            }}
+                            sx={{
+                              bgcolor: '#FFFFFF',
+                              '& input': { py: 0.4, px: 0.8, fontSize: '0.82rem' },
+                            }}
+                          />
+                          <Tooltip title="Save (Enter)">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleSaveEditSubtask(subId)}
+                              sx={{ color: '#16A34A', bgcolor: '#F0FDF4' }}
+                            >
+                              <CheckIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Cancel (Esc)">
+                            <IconButton
+                              size="small"
+                              onClick={handleCancelEditSubtask}
+                              sx={{ color: '#64748B' }}
+                            >
+                              <CloseIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      );
+                    }
+
+                    return (
+                      <Stack
+                        key={subId}
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        sx={{
+                          p: 0.7,
+                          px: 1,
+                          borderRadius: '6px',
+                          bgcolor: '#FFFFFF',
+                          border: '1px solid #E2E8F0',
+                          '&:hover': {
+                            bgcolor: '#FAFAFA',
+                          },
+                        }}
+                      >
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1}
+                          sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                          onDoubleClick={() => handleStartEditSubtask(st)}
+                        >
+                          <Checkbox
+                            size="small"
+                            checked={Boolean(st.completed)}
+                            onChange={() => handleToggleSubtask(subId)}
+                            sx={{ p: 0.2 }}
+                          />
+                          <Tooltip title="Double-click to edit subtask" placement="top-start">
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                color: st.completed ? 'text.secondary' : '#0F172A',
+                                textDecoration: st.completed ? 'line-through' : 'none',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {st.title}
+                            </Typography>
+                          </Tooltip>
+                        </Stack>
+                        <Stack direction="row" spacing={0.5}>
+                          <Tooltip title="Edit subtask">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleStartEditSubtask(st)}
+                              sx={{ color: '#64748B', '&:hover': { color: '#2563EB' } }}
+                            >
+                              <EditOutlinedIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete subtask">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteSubtask(subId)}
+                              sx={{ color: '#94A3B8', '&:hover': { color: '#DC2626' } }}
+                            >
+                              <CloseIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </Stack>
+                    );
+                  })}
+                </Stack>
+              )}
+
+              {/* Add subtask input */}
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Add a subtask and press Enter..."
+                  value={newSubtaskInput}
+                  onChange={(e) => setNewSubtaskInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSubtask(e);
+                    }
+                  }}
+                  sx={{
+                    bgcolor: '#FFFFFF',
+                    '& input': { py: 0.6, fontSize: '0.82rem' },
+                  }}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                  onClick={handleAddSubtask}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    whiteSpace: 'nowrap',
+                    borderColor: '#CBD5E1',
+                    color: '#334155',
+                    '&:hover': {
+                      borderColor: '#4338CA',
+                      color: '#4338CA',
+                      bgcolor: '#EEF2FF',
+                    },
+                  }}
+                >
+                  Add
+                </Button>
+              </Stack>
+            </Box>
           </Stack>
         </DialogContent>
 

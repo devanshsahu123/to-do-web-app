@@ -2,9 +2,7 @@
  * To-Do Application API Service
  */
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL ||
-  (window.location.hostname === 'localhost' ? 'http://localhost:3002' : '');
+import { API_BASE_URL } from '../config';
 
 const getHeaders = (token, guestId) => {
   const headers = {
