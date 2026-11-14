@@ -2,6 +2,7 @@
   "name": "to-do-web-app",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/to-do",
   "proxy": "https://sahusaathi.com",
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -23,6 +24,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "serve": "serve -s build -l 3000",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
