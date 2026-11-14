@@ -21,6 +21,54 @@ const getHeaders = (token, guestId) => {
 
 export const api = {
   /**
+   * Send OTP via Gmail
+   */
+  async sendOtp({ email, name }) {
+    const res = await fetch(`${API_BASE_URL}/to-do/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to send OTP code.');
+    }
+    return data;
+  },
+
+  /**
+   * Verify OTP and Log In
+   */
+  async verifyOtp({ email, otp, guestId, name }) {
+    const res = await fetch(`${API_BASE_URL}/to-do/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, guestId, name }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Verification failed.');
+    }
+    return data;
+  },
+
+  /**
+   * Resend OTP
+   */
+  async resendOtp({ email }) {
+    const res = await fetch(`${API_BASE_URL}/to-do/api/auth/resend-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to resend code.');
+    }
+    return data;
+  },
+
+  /**
    * Email Register
    */
   async register({ email, password, name, guestId }) {
@@ -87,9 +135,10 @@ export const api = {
   /**
    * Get Weekly Summary
    */
-  async getWeeklySummary({ search = '', token = null, guestId = null } = {}) {
+  async getWeeklySummary({ search = '', category = '', token = null, guestId = null } = {}) {
     const url = new URL(`${API_BASE_URL}/to-do/api/summary`, window.location.origin);
     if (search) url.searchParams.set('search', search);
+    if (category && category !== 'All') url.searchParams.set('category', category);
 
     const res = await fetch(url.toString(), {
       method: 'GET',
@@ -186,6 +235,40 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to delete task');
+    }
+    return res.json();
+  },
+
+  /**
+   * Rename Category across all tasks
+   */
+  async renameCategory({ oldCategory, newCategory, token = null, guestId = null }) {
+    const res = await fetch(`${API_BASE_URL}/to-do/api/categories/rename`, {
+      method: 'PUT',
+      headers: getHeaders(token, guestId),
+      body: JSON.stringify({ oldCategory, newCategory, guestId }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to rename category');
+    }
+    return res.json();
+  },
+
+  /**
+   * Delete Category and migrate tasks to fallbackCategory
+   */
+  async deleteCategory({ category, fallbackCategory = 'Work', token = null, guestId = null }) {
+    const res = await fetch(`${API_BASE_URL}/to-do/api/categories/delete`, {
+      method: 'POST',
+      headers: getHeaders(token, guestId),
+      body: JSON.stringify({ category, fallbackCategory, guestId }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to delete category');
     }
     return res.json();
   },

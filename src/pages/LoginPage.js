@@ -1,82 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
   Button,
   TextField,
-  InputAdornment,
-  IconButton,
   Alert,
   Stack,
   Divider,
+  CircularProgress,
 } from '@mui/material';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import GoogleIcon from '@mui/icons-material/Google';
-import FacebookIcon from '@mui/icons-material/Facebook';
-import AppleIcon from '@mui/icons-material/Apple';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
 import GraphicEqIcon from '@mui/icons-material/GraphicEq';
+import MarkEmailReadOutlinedIcon from '@mui/icons-material/MarkEmailReadOutlined';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const { loginWithEmail, registerWithEmail, continueAsGuest } = useAuth();
+  const { sendOtp, verifyOtp, resendOtp, continueAsGuest } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [isSignUp, setIsSignUp] = useState(true);
+  // Step 1: 'email', Step 2: 'otp'
+  const [step, setStep] = useState('email');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [otp, setOtp] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
+  const [countdown, setCountdown] = useState(0);
 
   const from = location.state?.from?.pathname || '/to-do';
 
-  const handleSubmit = async (e) => {
+  // Resend timer countdown
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  // Step 1: Send OTP
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
 
     if (!email.trim() || !email.includes('@')) {
       setError('Please enter a valid email address.');
       return;
     }
 
-    if (!password || password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
     try {
       setLoading(true);
-      let res;
-      if (isSignUp) {
-        res = await registerWithEmail({
-          email: email.trim(),
-          password,
-          name: name.trim(),
-        });
-      } else {
-        res = await loginWithEmail({
-          email: email.trim(),
-          password,
-        });
-      }
+      const res = await sendOtp({
+        email: email.trim(),
+        name: name.trim(),
+      });
 
       if (res.success) {
-        navigate(from, { replace: true });
+        setStep('otp');
+        setCountdown(30);
+        setInfoMessage(res.message || `Verification code sent to ${email.trim()}.`);
       } else {
-        setError(res.message || 'Authentication failed.');
+        setError(res.message || 'Failed to send verification code.');
       }
     } catch (err) {
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err.message || 'Failed to send verification code.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Step 2: Verify OTP
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!otp.trim() || otp.trim().length < 6) {
+      setError('Please enter the 6-digit code sent to your email.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await verifyOtp({
+        email: email.trim(),
+        otp: otp.trim(),
+        name: name.trim(),
+      });
+
+      if (res.success) {
+        navigate(from, { replace: true });
+      } else {
+        setError(res.message || 'Invalid or expired verification code.');
+      }
+    } catch (err) {
+      setError(err.message || 'Verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResend = async () => {
+    if (countdown > 0) return;
+    try {
+      setLoading(true);
+      setError('');
+      const res = await resendOtp({ email: email.trim() });
+      if (res.success) {
+        setCountdown(30);
+        setInfoMessage('A new verification code has been sent to your email.');
+      } else {
+        setError(res.message || 'Failed to resend code.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Continue as Guest
   const handleGuest = async () => {
     try {
       setLoading(true);
@@ -99,7 +148,7 @@ export default function LoginPage() {
         flexDirection: { xs: 'column', md: 'row' },
       }}
     >
-      {/* Left Column: Sign up / Log in Form matching user screenshot */}
+      {/* Left Column: Sign up / Log in Form */}
       <Box
         sx={{
           flex: 1,
@@ -114,271 +163,327 @@ export default function LoginPage() {
         }}
       >
         <Box sx={{ width: '100%', maxWidth: '400px' }}>
-          {/* Header */}
-          <Box sx={{ mb: 3.5 }}>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 800,
-                color: '#1F2937',
-                letterSpacing: '-0.02em',
-                mb: 1,
-              }}
-            >
-              {isSignUp ? 'Sign up' : 'Log in'}
-            </Typography>
+          {/* STEP 1: Enter Email to receive OTP */}
+          {step === 'email' ? (
+            <>
+              {/* Header */}
+              <Box sx={{ mb: 3.5 }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: '#1F2937',
+                    letterSpacing: '-0.02em',
+                    mb: 1,
+                  }}
+                >
+                  Sign up / Log in
+                </Typography>
 
-            <Typography variant="body2" color="text.secondary">
-              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-              <Box
-                component="span"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError('');
-                }}
+                <Typography variant="body2" color="text.secondary">
+                  Enter your email to receive a secure 6-digit login code via Gmail.
+                </Typography>
+              </Box>
+
+              {/* Always Visible Alert Box */}
+              <Alert
+                severity="info"
+                icon={<MarkEmailReadOutlinedIcon sx={{ color: '#DC2626', fontSize: 22 }} />}
                 sx={{
-                  color: '#DC2626',
+                  mb: 2.5,
+                  borderRadius: 2.5,
+                  bgcolor: '#FFF5F5',
+                  border: '1px solid #FECACA',
+                  color: '#991B1B',
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
+                  fontSize: '0.88rem',
+                  lineHeight: 1.5,
+                  '& .MuiAlert-icon': {
+                    alignItems: 'center',
+                  },
                 }}
               >
-                {isSignUp ? 'Log in' : 'Sign up'}
-              </Box>
-            </Typography>
-          </Box>
+                Please enter your Gmail / email below to continue
+              </Alert>
 
-          {/* Social Continue Buttons */}
-          <Stack spacing={1.5} sx={{ mb: 3 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<GoogleIcon sx={{ color: '#EA4335' }} />}
-              onClick={() => {
-                setError('Please use the Email & Password form below to sign in or register.');
-              }}
-              sx={{
-                borderColor: '#E5E7EB',
-                color: '#1F2937',
-                py: 1.1,
-                borderRadius: 2,
-                fontWeight: 600,
-                textTransform: 'none',
-                fontSize: '0.92rem',
-                bgcolor: '#FFFFFF',
-                '&:hover': {
-                  borderColor: '#D1D5DB',
-                  bgcolor: '#F9FAFB',
-                },
-              }}
-            >
-              Continue with Google
-            </Button>
-
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<FacebookIcon sx={{ color: '#1877F2' }} />}
-              onClick={() => {
-                setError('Please use the Email & Password form below to sign in or register.');
-              }}
-              sx={{
-                borderColor: '#E5E7EB',
-                color: '#1F2937',
-                py: 1.1,
-                borderRadius: 2,
-                fontWeight: 600,
-                textTransform: 'none',
-                fontSize: '0.92rem',
-                bgcolor: '#FFFFFF',
-                '&:hover': {
-                  borderColor: '#D1D5DB',
-                  bgcolor: '#F9FAFB',
-                },
-              }}
-            >
-              Continue with Facebook
-            </Button>
-
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<AppleIcon sx={{ color: '#000000' }} />}
-              onClick={() => {
-                setError('Please use the Email & Password form below to sign in or register.');
-              }}
-              sx={{
-                borderColor: '#E5E7EB',
-                color: '#1F2937',
-                py: 1.1,
-                borderRadius: 2,
-                fontWeight: 600,
-                textTransform: 'none',
-                fontSize: '0.92rem',
-                bgcolor: '#FFFFFF',
-                '&:hover': {
-                  borderColor: '#D1D5DB',
-                  bgcolor: '#F9FAFB',
-                },
-              }}
-            >
-              Continue with Apple
-            </Button>
-          </Stack>
-
-          {/* Divider */}
-          <Divider sx={{ my: 2.5, color: 'text.secondary', fontSize: '0.8rem' }}>
-            OR
-          </Divider>
-
-          {/* Error Message */}
-          {error && (
-            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {/* Form */}
-          <Box component="form" onSubmit={handleSubmit}>
-            <Stack spacing={2}>
-              {isSignUp && (
-                <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ fontWeight: 600, color: '#374151', display: 'block', mb: 0.8 }}
-                  >
-                    Name
-                  </Typography>
-                  <TextField
-                    placeholder="Enter your name..."
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    fullWidth
-                    size="small"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        bgcolor: '#FFFFFF',
-                      },
-                    }}
-                  />
-                </Box>
+              {error && (
+                <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+                  {error}
+                </Alert>
               )}
 
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, color: '#374151', display: 'block', mb: 0.8 }}
-                >
-                  Email
-                </Typography>
-                <TextField
-                  placeholder="Enter your personal or work email..."
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  fullWidth
-                  size="small"
-                  required
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
+              {/* Form */}
+              <Box component="form" onSubmit={handleSendOtp}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, color: '#374151', display: 'block', mb: 0.8 }}
+                    >
+                      Email
+                    </Typography>
+                    <TextField
+                      placeholder="Enter your personal or work email..."
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      fullWidth
+                      size="small"
+                      required
+                      autoFocus
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          bgcolor: '#FFFFFF',
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, color: '#374151', display: 'block', mb: 0.8 }}
+                    >
+                      Display Name (Optional)
+                    </Typography>
+                    <TextField
+                      placeholder="e.g. Alex Smith"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      fullWidth
+                      size="small"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          bgcolor: '#FFFFFF',
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  {/* Red Action Button */}
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={loading}
+                    sx={{
+                      bgcolor: '#DC2626',
+                      color: '#FFFFFF',
+                      py: 1.3,
                       borderRadius: 2,
-                      bgcolor: '#FFFFFF',
-                    },
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      textTransform: 'none',
+                      boxShadow: 'none',
+                      mt: 1,
+                      '&:hover': {
+                        bgcolor: '#B91C1C',
+                        boxShadow: 'none',
+                      },
+                    }}
+                  >
+                    {loading ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <CircularProgress size={18} color="inherit" />
+                        <span>Sending OTP...</span>
+                      </Stack>
+                    ) : (
+                      'Send Verification Code'
+                    )}
+                  </Button>
+
+                  {/* Continue as Guest */}
+                  <Button
+                    variant="text"
+                    fullWidth
+                    startIcon={<PersonOutlineIcon />}
+                    onClick={handleGuest}
+                    disabled={loading}
+                    sx={{
+                      color: '#4B5563',
+                      py: 1,
+                      borderRadius: 2,
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      textTransform: 'none',
+                      '&:hover': {
+                        bgcolor: '#F3F4F6',
+                        color: '#111827',
+                      },
+                    }}
+                  >
+                    Continue as Guest
+                  </Button>
+                </Stack>
+              </Box>
+            </>
+          ) : (
+            /* STEP 2: Enter 6-digit OTP code */
+            <>
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  startIcon={<ArrowBackIcon fontSize="small" />}
+                  onClick={() => {
+                    setStep('email');
+                    setError('');
+                    setInfoMessage('');
                   }}
-                />
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.8rem',
+                    textTransform: 'none',
+                    p: 0,
+                    mb: 1.5,
+                  }}
+                >
+                  Change Email
+                </Button>
+
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                  <MarkEmailReadOutlinedIcon sx={{ color: '#DC2626', fontSize: 28 }} />
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 800,
+                      color: '#1F2937',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    Check your email
+                  </Typography>
+                </Stack>
+
+                <Typography variant="body2" color="text.secondary">
+                  We sent a 6-digit verification code to{' '}
+                  <strong style={{ color: '#111827' }}>{email}</strong>.
+                </Typography>
               </Box>
 
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, color: '#374151', display: 'block', mb: 0.8 }}
-                >
-                  Password
-                </Typography>
-                <TextField
-                  placeholder="Enter your password..."
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  fullWidth
-                  size="small"
-                  required
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                          size="small"
-                        >
-                          {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
+              {infoMessage && (
+                <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2 }}>
+                  {infoMessage}
+                </Alert>
+              )}
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+                  {error}
+                </Alert>
+              )}
+
+              {/* OTP Form */}
+              <Box component="form" onSubmit={handleVerifyOtp}>
+                <Stack spacing={2.5}>
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 600, color: '#374151', display: 'block', mb: 0.8 }}
+                    >
+                      6-Digit Verification Code
+                    </Typography>
+                    <TextField
+                      placeholder="• • • • • •"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      fullWidth
+                      size="medium"
+                      required
+                      autoFocus
+                      inputProps={{
+                        maxLength: 6,
+                        style: {
+                          textAlign: 'center',
+                          fontSize: '1.6rem',
+                          fontWeight: 800,
+                          letterSpacing: '8px',
+                          color: '#DC2626',
+                        },
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2.5,
+                          bgcolor: '#FEF2F2',
+                          '& fieldset': { borderColor: '#FECACA' },
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  {/* Verify Button */}
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={loading || otp.length < 6}
+                    sx={{
+                      bgcolor: '#DC2626',
+                      color: '#FFFFFF',
+                      py: 1.3,
                       borderRadius: 2,
-                      bgcolor: '#FFFFFF',
-                    },
-                  }}
-                />
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      textTransform: 'none',
+                      boxShadow: 'none',
+                      '&:hover': {
+                        bgcolor: '#B91C1C',
+                      },
+                    }}
+                  >
+                    {loading ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <CircularProgress size={18} color="inherit" />
+                        <span>Verifying...</span>
+                      </Stack>
+                    ) : (
+                      'Verify & Continue'
+                    )}
+                  </Button>
+
+                  {/* Resend Code Option */}
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Didn't receive the code?{' '}
+                      <Box
+                        component="span"
+                        onClick={handleResend}
+                        sx={{
+                          color: countdown > 0 ? '#9CA3AF' : '#DC2626',
+                          fontWeight: 700,
+                          cursor: countdown > 0 ? 'default' : 'pointer',
+                          textDecoration: countdown > 0 ? 'none' : 'underline',
+                        }}
+                      >
+                        {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
+                      </Box>
+                    </Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 1 }} />
+
+                  {/* Guest Fallback */}
+                  <Button
+                    variant="text"
+                    fullWidth
+                    startIcon={<PersonOutlineIcon />}
+                    onClick={handleGuest}
+                    disabled={loading}
+                    sx={{
+                      color: '#4B5563',
+                      py: 1,
+                      borderRadius: 2,
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      textTransform: 'none',
+                    }}
+                  >
+                    Skip and Continue as Guest
+                  </Button>
+                </Stack>
               </Box>
-
-              {/* Red Submit Button matching screenshot */}
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disabled={loading}
-                sx={{
-                  bgcolor: '#DC2626',
-                  color: '#FFFFFF',
-                  py: 1.3,
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  mt: 1,
-                  '&:hover': {
-                    bgcolor: '#B91C1C',
-                    boxShadow: 'none',
-                  },
-                }}
-              >
-                {loading
-                  ? 'Please wait...'
-                  : isSignUp
-                  ? 'Sign up with Email'
-                  : 'Log in with Email'}
-              </Button>
-
-              {/* Guest Option Button */}
-              <Button
-                variant="text"
-                fullWidth
-                startIcon={<PersonOutlineIcon />}
-                onClick={handleGuest}
-                disabled={loading}
-                sx={{
-                  color: '#4B5563',
-                  py: 1,
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  textTransform: 'none',
-                  '&:hover': {
-                    bgcolor: '#F3F4F6',
-                    color: '#111827',
-                  },
-                }}
-              >
-                Continue as Guest
-              </Button>
-            </Stack>
-          </Box>
+            </>
+          )}
 
           {/* Legal disclaimer */}
           <Typography
@@ -392,7 +497,7 @@ export default function LoginPage() {
               textAlign: 'left',
             }}
           >
-            By continuing with Google, Apple, or Email, you agree to To-Do's{' '}
+            By continuing with Email, you agree to To-Do's{' '}
             <Box component="span" sx={{ textDecoration: 'underline', color: '#6B7280' }}>
               Terms of Service
             </Box>{' '}

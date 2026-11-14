@@ -16,6 +16,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
+import MenuIcon from '@mui/icons-material/Menu';
+import AddIcon from '@mui/icons-material/Add';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 
 export default function SearchHeader({
   searchQuery,
@@ -26,6 +29,9 @@ export default function SearchHeader({
   isGuest,
   onOpenLoginModal,
   onLogout,
+  onOpenSidebar,
+  onOpenAddTask,
+  onOpenCalendar,
 }) {
   const [anchorEl, setAnchorEl] = React.useState(null);
 
@@ -53,17 +59,106 @@ export default function SearchHeader({
           mb: 2,
         }}
       >
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0F172A' }}>
-            Weekly To-Do
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            Track progress & organize tasks by week
-          </Typography>
-        </Box>
+        <Stack direction="row" alignItems="center" spacing={1.2}>
+          <IconButton
+            onClick={onOpenSidebar}
+            size="small"
+            sx={{
+              display: { xs: 'inline-flex', md: 'none' },
+              p: 0.8,
+              bgcolor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '8px',
+              color: '#334155',
+              '&:hover': { bgcolor: '#F8FAFC', borderColor: '#DC2626' },
+            }}
+          >
+            <MenuIcon fontSize="small" />
+          </IconButton>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: '#0F172A', fontSize: { xs: '1.25rem', sm: '1.5rem' }, letterSpacing: '-0.02em' }}>
+              Weekly To-Do
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+              Track progress & organize tasks
+            </Typography>
+          </Box>
+        </Stack>
 
-        {/* User state badge / Login button */}
-        <Box>
+        {/* User state badge / Login button / Desktop Add Task / Calendar */}
+        <Stack direction="row" alignItems="center" spacing={1.2}>
+          {onOpenCalendar && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<CalendarMonthIcon sx={{ fontSize: 16 }} />}
+              onClick={onOpenCalendar}
+              sx={{
+                display: { xs: 'none', sm: 'inline-flex' },
+                borderRadius: '8px',
+                px: 1.8,
+                py: 0.7,
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                textTransform: 'none',
+                borderColor: '#E2E8F0',
+                bgcolor: '#FFFFFF',
+                color: '#334155',
+                '&:hover': {
+                  borderColor: '#DC2626',
+                  color: '#DC2626',
+                  bgcolor: '#F8FAFC',
+                },
+              }}
+            >
+              Calendar
+            </Button>
+          )}
+
+          {onOpenCalendar && (
+            <IconButton
+              onClick={onOpenCalendar}
+              size="small"
+              title="Open Calendar"
+              sx={{
+                display: { xs: 'inline-flex', sm: 'none' },
+                p: 0.8,
+                bgcolor: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px',
+                color: '#334155',
+                '&:hover': { bgcolor: '#F8FAFC', borderColor: '#DC2626', color: '#DC2626' },
+              }}
+            >
+              <CalendarMonthIcon fontSize="small" />
+            </IconButton>
+          )}
+
+          {onOpenAddTask && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={onOpenAddTask}
+              sx={{
+                display: { xs: 'none', sm: 'inline-flex' },
+                borderRadius: '8px',
+                px: 2,
+                py: 0.8,
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                textTransform: 'none',
+                boxShadow: 'none',
+                background: 'linear-gradient(135deg, #DC2626 0%, #EA580C 100%)',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+                },
+              }}
+            >
+              Add Task
+            </Button>
+          )}
+
           {isGuest ? (
             <Button
               variant="outlined"
@@ -71,7 +166,7 @@ export default function SearchHeader({
               startIcon={<MailOutlinedIcon sx={{ fontSize: 16 }} />}
               onClick={onOpenLoginModal}
               sx={{
-                borderRadius: 2.5,
+                borderRadius: '8px',
                 fontSize: '0.8rem',
                 borderColor: '#E2E8F0',
                 color: '#1F2937',
@@ -128,7 +223,7 @@ export default function SearchHeader({
               </Menu>
             </>
           )}
-        </Box>
+        </Stack>
       </Box>
 
       {/* Guest Mode Notice banner if in guest mode */}

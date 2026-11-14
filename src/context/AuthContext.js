@@ -14,12 +14,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const storedToken = localStorage.getItem('todo_token');
       const storedUser = localStorage.getItem('todo_user');
+      const storedGuestActive = localStorage.getItem('todo_guest_active');
       const storedGuestId = localStorage.getItem('todo_guest_id');
 
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
-      } else if (storedGuestId) {
+      } else if (storedGuestActive === 'true' && storedGuestId) {
         setGuestId(storedGuestId);
         setUser({
           id: storedGuestId,
@@ -28,16 +29,10 @@ export const AuthProvider = ({ children }) => {
           isGuest: true,
         });
       } else {
-        // Auto-assign guest ID for immediate frictionless experience if desired
-        const newGuestId = 'guest_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-        localStorage.setItem('todo_guest_id', newGuestId);
-        setGuestId(newGuestId);
-        setUser({
-          id: newGuestId,
-          name: 'Guest User',
-          email: null,
-          isGuest: true,
-        });
+        // Not logged in and not guest - prompt login page
+        setUser(null);
+        setToken(null);
+        setGuestId(null);
       }
     } catch (e) {
       console.error('Auth initialization error:', e);
@@ -46,36 +41,29 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const loginWithEmail = useCallback(async ({ email, password }) => {
+  /**
+   * Send 6-digit OTP to Gmail
+   */
+  const sendOtp = useCallback(async ({ email, name }) => {
     try {
-      const currentGuestId = localStorage.getItem('todo_guest_id');
-      const data = await api.login({
-        email,
-        password,
-        guestId: currentGuestId,
-      });
-
-      if (data.success) {
-        setUser(data.user);
-        setToken(data.token);
-        localStorage.setItem('todo_token', data.token);
-        localStorage.setItem('todo_user', JSON.stringify(data.user));
-        return { success: true };
-      }
-      return { success: false, message: data.message };
+      const res = await api.sendOtp({ email, name });
+      return res;
     } catch (error) {
-      return { success: false, message: error.message };
+      throw error;
     }
   }, []);
 
-  const registerWithEmail = useCallback(async ({ email, password, name }) => {
+  /**
+   * Verify OTP and log in
+   */
+  const verifyOtp = useCallback(async ({ email, otp, name }) => {
     try {
       const currentGuestId = localStorage.getItem('todo_guest_id');
-      const data = await api.register({
+      const data = await api.verifyOtp({
         email,
-        password,
+        otp,
+        guestId: currentGuestId,
         name,
-        guestId: currentGuestId,
       });
 
       if (data.success) {
@@ -83,7 +71,8 @@ export const AuthProvider = ({ children }) => {
         setToken(data.token);
         localStorage.setItem('todo_token', data.token);
         localStorage.setItem('todo_user', JSON.stringify(data.user));
-        return { success: true };
+        localStorage.removeItem('todo_guest_active');
+        return { success: true, user: data.user };
       }
       return { success: false, message: data.message };
     } catch (error) {
@@ -91,37 +80,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const loginWithGoogle = useCallback(async ({ email, name, avatar, googleId }) => {
+  /**
+   * Resend OTP
+   */
+  const resendOtp = useCallback(async ({ email }) => {
     try {
-      const currentGuestId = localStorage.getItem('todo_guest_id');
-      const data = await api.googleAuth({
-        email,
-        name,
-        avatar,
-        googleId,
-        guestId: currentGuestId,
-      });
-
-      if (data.success) {
-        setUser(data.user);
-        setToken(data.token);
-        localStorage.setItem('todo_token', data.token);
-        localStorage.setItem('todo_user', JSON.stringify(data.user));
-        return { success: true };
-      }
-      return { success: false, message: data.message };
+      return await api.resendOtp({ email });
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, message: error.message };
+      throw error;
     }
   }, []);
 
+  /**
+   * Continue as Guest
+   */
   const continueAsGuest = useCallback(async () => {
     let existingGuestId = localStorage.getItem('todo_guest_id');
     if (!existingGuestId) {
       existingGuestId = 'guest_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
       localStorage.setItem('todo_guest_id', existingGuestId);
     }
+    localStorage.setItem('todo_guest_active', 'true');
 
     try {
       await api.guestAuth(existingGuestId);
@@ -143,20 +122,16 @@ export const AuthProvider = ({ children }) => {
     return { success: true };
   }, []);
 
+  /**
+   * Log out
+   */
   const logout = useCallback(() => {
     localStorage.removeItem('todo_token');
     localStorage.removeItem('todo_user');
+    localStorage.removeItem('todo_guest_active');
     setToken(null);
-    // Return to guest mode seamlessly
-    const currentGuestId = localStorage.getItem('todo_guest_id') || 'guest_' + Date.now();
-    localStorage.setItem('todo_guest_id', currentGuestId);
-    setGuestId(currentGuestId);
-    setUser({
-      id: currentGuestId,
-      name: 'Guest User',
-      email: null,
-      isGuest: true,
-    });
+    setUser(null);
+    setGuestId(null);
   }, []);
 
   return (
@@ -166,10 +141,11 @@ export const AuthProvider = ({ children }) => {
         token,
         guestId,
         loading,
-        isGuest: user?.isGuest ?? true,
-        loginWithEmail,
-        registerWithEmail,
-        loginWithGoogle,
+        isAuthenticated: !!token,
+        isGuest: user?.isGuest ?? false,
+        sendOtp,
+        verifyOtp,
+        resendOtp,
         continueAsGuest,
         logout,
       }}
@@ -180,4 +156,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-

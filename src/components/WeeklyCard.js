@@ -15,7 +15,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import AddIcon from '@mui/icons-material/Add';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TaskItem from './TaskItem';
 
 const formatWeekHeader = (startDateStr, endDateStr, year, weekNumber) => {
@@ -38,15 +38,16 @@ export default function WeeklyCard({
   onEditTask,
   onDeleteTask,
   onAddTaskForWeek,
+  onUpdateSubtasks,
 }) {
   const {
     weekNumber,
-    year,
+    year = 2026,
     weekStartDate,
     weekEndDate,
-    openTasks,
-    completedTasks,
-    totalTasks,
+    openTasks = 0,
+    completedTasks = 0,
+    totalTasks = 0,
     tasks = [],
   } = weekData;
 
@@ -63,36 +64,54 @@ export default function WeeklyCard({
       expanded={isExpanded}
       onChange={onToggleExpand}
       disableGutters
-      elevation={isExpanded ? 3 : 1}
+      elevation={0}
       sx={{
         mb: 2,
-        borderRadius: 3.5,
+        borderRadius: '12px !important',
         overflow: 'hidden',
         border: '1px solid',
-        borderColor: isCurrentWeek ? 'primary.light' : '#E2E8F0',
-        transition: 'all 0.25s ease-in-out',
+        borderColor: isCurrentWeek ? '#DC2626' : '#E2E8F0',
+        bgcolor: '#FFFFFF',
+        boxShadow: isExpanded ? '0 4px 14px rgba(0,0,0,0.05)' : '0 1px 3px rgba(0,0,0,0.02)',
+        transition: 'all 0.2s ease-in-out',
         '&:before': { display: 'none' },
       }}
     >
       <AccordionSummary
-        expandIcon={<ExpandMoreIcon sx={{ color: 'text.secondary' }} />}
+        expandIcon={<ExpandMoreIcon sx={{ color: '#64748B' }} />}
         sx={{
           px: { xs: 2, sm: 2.5 },
-          py: 1,
-          bgcolor: isCurrentWeek ? '#F5F7FF' : '#FFFFFF',
+          py: 1.2,
+          bgcolor: isCurrentWeek ? '#FFFDFD' : '#FFFFFF',
           '& .MuiAccordionSummary-content': {
             flexDirection: 'column',
             margin: 0,
           },
         }}
       >
-        {/* Top line: Week title & badges */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', mb: 1 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <CalendarMonthIcon sx={{ color: isCurrentWeek ? 'primary.main' : 'text.secondary', fontSize: 20 }} />
-            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#0F172A' }}>
+        {/* Top line: Week title, Annual Stamp & Date Range */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', mb: 1.2 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.8 }}>
+            <CalendarTodayIcon sx={{ color: isCurrentWeek ? '#DC2626' : '#64748B', fontSize: 18 }} />
+            
+            <Typography variant="subtitle1" fontWeight={800} sx={{ color: '#0F172A', fontSize: '0.96rem' }}>
               Week {weekNumber}
             </Typography>
+
+            {/* Annual Stamp Badge */}
+            <Chip
+              label={`${year} • ISO`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                bgcolor: '#F1F5F9',
+                color: '#475569',
+                borderRadius: '6px',
+              }}
+            />
+
             {isCurrentWeek && (
               <Chip
                 label="Current Week"
@@ -100,19 +119,21 @@ export default function WeeklyCard({
                 sx={{
                   height: 20,
                   fontSize: '0.68rem',
-                  fontWeight: 700,
-                  bgcolor: 'primary.main',
+                  fontWeight: 800,
+                  bgcolor: '#DC2626',
                   color: 'white',
+                  borderRadius: '6px',
                 }}
               />
             )}
           </Stack>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.78rem' }}>
             {formatWeekHeader(weekStartDate, weekEndDate, year, weekNumber)}
           </Typography>
         </Box>
 
-        {/* Task Summary Badges (Open vs Completed as required by PDF) */}
+        {/* Task Summary Badges (Open vs Completed as required by Assessment) */}
         <Box
           sx={{
             display: 'flex',
@@ -123,38 +144,42 @@ export default function WeeklyCard({
             width: '100%',
           }}
         >
-          <Stack direction="row" spacing={1.2}>
+          <Stack direction="row" spacing={1}>
             {/* Open Tasks Count */}
             <Chip
-              icon={<PendingActionsIcon fontSize="small" style={{ color: '#4F46E5' }} />}
+              icon={<PendingActionsIcon fontSize="small" style={{ color: '#4338CA' }} />}
               label={`${openTasks} Open`}
               size="small"
               sx={{
                 bgcolor: '#EEF2FF',
                 color: '#4338CA',
                 fontWeight: 700,
-                fontSize: '0.78rem',
+                fontSize: '0.75rem',
                 border: '1px solid #C7D2FE',
+                borderRadius: '6px',
+                height: 24,
               }}
             />
 
             {/* Completed Tasks Count */}
             <Chip
-              icon={<CheckCircleOutlinedIcon fontSize="small" style={{ color: '#10B981' }} />}
+              icon={<CheckCircleOutlinedIcon fontSize="small" style={{ color: '#065F46' }} />}
               label={`${completedTasks} Completed`}
               size="small"
               sx={{
                 bgcolor: '#ECFDF5',
                 color: '#065F46',
                 fontWeight: 700,
-                fontSize: '0.78rem',
+                fontSize: '0.75rem',
                 border: '1px solid #A7F3D0',
+                borderRadius: '6px',
+                height: 24,
               }}
             />
           </Stack>
 
-          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-            {completionPercent}% done
+          <Typography variant="caption" sx={{ fontWeight: 800, color: completionPercent === 100 ? '#10B981' : '#475569', fontSize: '0.78rem' }}>
+            {completionPercent}% completed
           </Typography>
         </Box>
 
@@ -176,15 +201,23 @@ export default function WeeklyCard({
         </Box>
       </AccordionSummary>
 
-      <Divider />
+      <Divider sx={{ borderColor: '#F1F5F9' }} />
 
       {/* Expanded Tasks List for this week */}
-      <AccordionDetails sx={{ px: { xs: 2, sm: 2.5 }, pt: 2, pb: 2, bgcolor: '#FAF5FF' }}>
+      <AccordionDetails sx={{ px: { xs: 2, sm: 2.5 }, pt: 2, pb: 2, bgcolor: '#F8FAFC' }}>
         {tasks.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              No tasks scheduled for this week.
+          <Box sx={{ textAlign: 'center', py: 3, bgcolor: '#FFFFFF', borderRadius: '10px', p: 2, border: '1px dashed #CBD5E1' }}>
+            <Typography variant="body2" color="text.secondary" fontWeight={600}>
+              No tasks scheduled for Week {weekNumber}.
             </Typography>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => onAddTaskForWeek(weekStartDate)}
+              sx={{ mt: 1, textTransform: 'none', fontWeight: 700, color: '#DC2626' }}
+            >
+              Add First Task
+            </Button>
           </Box>
         ) : (
           tasks.map((task) => (
@@ -194,34 +227,40 @@ export default function WeeklyCard({
               onToggleStatus={onToggleStatus}
               onEdit={onEditTask}
               onDelete={onDeleteTask}
+              onUpdateSubtasks={onUpdateSubtasks}
             />
           ))
         )}
 
         {/* Quick Add for this specific week */}
-        <Box sx={{ mt: 1.5, textAlign: 'center' }}>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            variant="outlined"
-            onClick={() => onAddTaskForWeek(weekStartDate)}
-            sx={{
-              borderRadius: 2.5,
-              fontSize: '0.8rem',
-              py: 0.7,
-              px: 2,
-              borderColor: '#CBD5E1',
-              color: 'text.secondary',
-              '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
+        {tasks.length > 0 && (
+          <Box sx={{ mt: 1.5, textAlign: 'center' }}>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              variant="outlined"
+              onClick={() => onAddTaskForWeek(weekStartDate)}
+              sx={{
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                py: 0.6,
+                px: 2,
+                borderColor: '#CBD5E1',
+                color: '#475569',
+                textTransform: 'none',
+                fontWeight: 700,
                 bgcolor: '#FFFFFF',
-              },
-            }}
-          >
-            Add Task to Week {weekNumber}
-          </Button>
-        </Box>
+                '&:hover': {
+                  borderColor: '#DC2626',
+                  color: '#DC2626',
+                  bgcolor: '#FFFFFF',
+                },
+              }}
+            >
+              Add Task to Week {weekNumber}
+            </Button>
+          </Box>
+        )}
       </AccordionDetails>
     </Accordion>
   );
